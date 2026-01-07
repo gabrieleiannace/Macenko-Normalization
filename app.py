@@ -101,6 +101,17 @@ st.markdown("""
         border-top: 2px solid #00ADB5;
     }
 
+    /* COMPACT MAIN AREA */
+    .block-container { 
+        padding-top: 0.5rem; 
+        padding-bottom: 0rem; 
+        max-width: 95%; /* WIDER */
+    }
+    
+    /* HEADERS & TEXT */
+    h1, h2, h3 { margin-bottom: 0.2rem; margin-top: 0.2rem; }
+    p, div { margin-bottom: 0px; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,10 +129,10 @@ except FileNotFoundError:
 # --- SIDEBAR: CONTROL PANEL ---
 # No emojis, clean uppercase headers
 with st.sidebar:
-    st.markdown("<h3 style='margin-top:0; color:#00ADB5; border-bottom:1px solid #333; padding-bottom:10px;'>MACENKO<span style='color:#fff'>LAB</span></h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top:0; color:#00ADB5; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px;'>MACENKO<span style='color:#fff'>LAB</span></h3>", unsafe_allow_html=True)
 
     # 1. REFERENCE
-    st.markdown("<div style='margin-top:20px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:5px;'>REFERENCE STANDARD</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:5px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:2px;'>REFERENCE STANDARD</div>", unsafe_allow_html=True)
     
     if 'selected_target' not in st.session_state:
         st.session_state.selected_target = all_files[0] if all_files else None
@@ -259,7 +270,7 @@ if st.session_state.selected_target and st.session_state.selected_sample:
                 y=alt.Y('density', title=None, axis=None),
                 color=alt.Color('channel', scale=alt.Scale(domain=['Red', 'Green', 'Blue'], range=['#ff4b4b', '#009900', '#4b4bff']), legend=None),
                 tooltip=['channel', 'val', 'density']
-            ).properties(height=150, title=title)
+            ).properties(height=120, title=title)
             return c
 
         c_a, c_b = st.columns(2)
