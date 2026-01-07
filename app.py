@@ -34,7 +34,7 @@ st.markdown("""
     /* REMOVE STREAMLIT BRANDING */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;} 
+    /* header {visibility: hidden;} */ /* Keep header visible for Sidebar Toggle */ 
     
     /* COMPACT SIDEBAR */
     [data-testid="stSidebar"] {
