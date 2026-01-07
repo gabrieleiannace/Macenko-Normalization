@@ -6,15 +6,10 @@ import normalization_core
 import pandas as pd
 import altair as alt
 from scipy.interpolate import PchipInterpolator
-
-import streamlit as st
-import os
-from PIL import Image
-import numpy as np
-import normalization_core
-import pandas as pd
-import altair as alt
-from scipy.interpolate import PchipInterpolator
+import base64
+from streamlit_clickable_images import clickable_images
+import json
+from PIL.PngImagePlugin import PngInfo
 
 # --- CONFIGURATION ---
 st.set_page_config(
@@ -101,17 +96,6 @@ st.markdown("""
         border-top: 2px solid #00ADB5;
     }
 
-    /* COMPACT MAIN AREA */
-    .block-container { 
-        padding-top: 0.5rem; 
-        padding-bottom: 0rem; 
-        max-width: 95%; /* WIDER */
-    }
-    
-    /* HEADERS & TEXT */
-    h1, h2, h3 { margin-bottom: 0.2rem; margin-top: 0.2rem; }
-    p, div { margin-bottom: 0px; }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,13 +110,32 @@ try:
 except FileNotFoundError:
     all_files = []
 
+# --- HELPERS ---
+@st.cache_data
+def get_thumbnails(file_list, folder):
+    images = []
+    for f in file_list:
+        path = os.path.join(folder, f)
+        with Image.open(path) as img:
+            img.thumbnail((120, 120)) # Resize for heavy performance lift
+            import io
+            with io.BytesIO() as buffer:
+                img.save(buffer, format="JPEG", quality=80) # Faster jpg
+                img_str = base64.b64encode(buffer.getvalue()).decode()
+                images.append(f"data:image/jpeg;base64,{img_str}")
+    return images
+
+# Pre-load thumbnails (limit 50 for safety)
+with st.spinner("Initializing assets..."):
+    all_thumbnails = get_thumbnails(all_files[:50], IMAGE_DIR)
+
 # --- SIDEBAR: CONTROL PANEL ---
 # No emojis, clean uppercase headers
 with st.sidebar:
-    st.markdown("<h3 style='margin-top:0; color:#00ADB5; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px;'>MACENKO<span style='color:#fff'>LAB</span></h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top:0; color:#00ADB5; border-bottom:1px solid #333; padding-bottom:10px;'>MACENKO<span style='color:#fff'>LAB</span></h3>", unsafe_allow_html=True)
 
     # 1. REFERENCE
-    st.markdown("<div style='margin-top:5px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:2px;'>REFERENCE STANDARD</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:20px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:5px;'>REFERENCE STANDARD</div>", unsafe_allow_html=True)
     
     if 'selected_target' not in st.session_state:
         st.session_state.selected_target = all_files[0] if all_files else None
@@ -146,13 +149,25 @@ with st.sidebar:
         st.image(os.path.join(IMAGE_DIR, st.session_state.selected_target))
         
     with st.expander("BROWSE TARGETS"):
-        cols = st.columns(3)
-        for i, f in enumerate(all_files[:9]):
-            with cols[i%3]:
-                if st.button("SET", key=f"t_{f}", help=f):
-                    st.session_state.selected_target = f
-                    st.rerun()
-                st.image(os.path.join(IMAGE_DIR, f), use_container_width=True)
+        # Grid Layout (3x3 approx)
+        tgt_idx_grid = all_files.index(st.session_state.selected_target) if st.session_state.selected_target in all_files else -1
+        
+        # We reuse all_thumbnails which matches all_files[:50]
+        # Limitation: Target selector only shows first 50. Acceptable for now.
+        
+        clicked_tgt = clickable_images(
+            all_thumbnails, 
+            titles=all_files[:50],
+            div_style={"display": "flex", "flex-wrap": "wrap", "justify-content": "space-between", "height": "300px", "overflow-y": "auto", "padding": "5px", "gap": "5px"},
+            img_style={"cursor": "pointer", "border-radius": "4px", "transition": "transform 0.2s", "border": "3px solid #333", "width": "30%", "height": "60px", "object-fit": "cover"},
+            key="target_grid",
+            default=tgt_idx_grid,
+            border_color="#00ADB5"
+        )
+        
+        if clicked_tgt > -1 and clicked_tgt != tgt_idx_grid:
+            st.session_state.selected_target = all_files[clicked_tgt]
+            st.rerun()
 
     st.markdown("<div style='margin-top:30px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:5px;'>PARAMETER DECK</div>", unsafe_allow_html=True)
     
@@ -208,6 +223,32 @@ with st.sidebar:
 # Top Bar
 if 'selected_sample' not in st.session_state:
      st.session_state.selected_sample = all_files[1] if len(all_files)>1 else all_files[0]
+
+# --- IMAGE TRAY CAROUSEL ---
+with st.expander("IMAGE TRAY", expanded=True):
+    st.caption("🎞️ **FILMSTRIP CAROUSEL**", help="**Image Carousel**\nClicca su un'immagine per caricarla. Scorri orizzontalmente con Shift+Scroll o Touch.")
+    
+    # 1. Use Global Thumbnails (already computed)
+    tray_files = all_files[:50] # Matches global prep
+    
+    # 2. Render Clickable Carousel
+    # Highlight active
+    curr_idx = tray_files.index(st.session_state.selected_sample) if st.session_state.selected_sample in tray_files else -1
+    
+    clicked = clickable_images(
+        all_thumbnails,  # Reuse global cache 
+        titles=tray_files,
+        div_style={"display": "flex", "justify-content": "flex-start", "flex-wrap": "nowrap", "overflow-x": "auto", "padding": "10px", "gap": "10px"},
+        img_style={"cursor": "pointer", "border-radius": "4px", "transition": "transform 0.2s", "border": "5px solid #444", "height": "100px", "min-width": "100px", "object-fit": "cover"},
+        key="tray_carousel",
+        default=curr_idx,
+        border_color="#00ADB5"
+    )
+    
+    # 4. Handle Selection
+    if clicked > -1 and clicked != curr_idx:
+         st.session_state.selected_sample = tray_files[clicked]
+         st.rerun()
 
 # Custom Header Bar
 st.markdown(f"""
@@ -270,7 +311,7 @@ if st.session_state.selected_target and st.session_state.selected_sample:
                 y=alt.Y('density', title=None, axis=None),
                 color=alt.Color('channel', scale=alt.Scale(domain=['Red', 'Green', 'Blue'], range=['#ff4b4b', '#009900', '#4b4bff']), legend=None),
                 tooltip=['channel', 'val', 'density']
-            ).properties(height=120, title=title)
+            ).properties(height=150, title=title)
             return c
 
         c_a, c_b = st.columns(2)
@@ -281,32 +322,22 @@ if st.session_state.selected_target and st.session_state.selected_sample:
             
         st.info("ℹ️ **INTERPRETAZIONE**: I picchi indicano i colori dominanti. Nel **Target**, il rosa (Eosina) e il viola (Ematossilina) creano curve distinte. L'Output dovrebbe assomigliare alla distribuzione del Target.")
 
-# Footer: Tray
-st.markdown("<div style='margin-top:20px; border-top:1px solid #333;'></div>", unsafe_allow_html=True)
-with st.expander("IMAGE TRAY", expanded=True):
-    # Sliding Window 
-    curr_idx = all_files.index(st.session_state.selected_sample)
-    start = max(0, curr_idx - 6)
-    end = min(len(all_files), start + 12)
-    
-    cols = st.columns(12)
-    for i, idx in enumerate(range(start, end)):
-        f = all_files[idx]
-        with cols[i]:
-            # Highlight active
-            border_color = "#00ADB5" if f == st.session_state.selected_sample else "#444"
-            st.markdown(f"<div style='border:2px solid {border_color}; border-radius:4px; padding:2px;'>", unsafe_allow_html=True)
-            st.image(os.path.join(IMAGE_DIR, f), use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            if st.button("LOAD", key=f"tray_{f}", help=f):
-                st.session_state.selected_sample = f
-                st.rerun()
+
 
 # Batch Runner
 if st.session_state.get('run_batch_trigger', False):
     st.info("BATCH JOB STARTED...")
     pbar = st.progress(0)
     
+    # Prepare Metadata (Static for this batch)
+    metadata = PngInfo()
+    metadata.add_text("Macenko_Target", st.session_state.selected_target)
+    metadata.add_text("Macenko_Params", json.dumps({"alpha": alpha, "beta": beta, "io": io_val}))
+    metadata.add_text("PostProcess", json.dumps({"gamma": gamma, "contrast": contrast, "sharpness": sharpness, "clarifier": clarify_strength}))
+    metadata.add_text("Curve", str(curve_points))
+    metadata.add_text("LuminosityMatch", str(use_lum_match))
+    metadata.add_text("HistogramMatch", str(use_hist_match))
+
     for i, f in enumerate(all_files):
         try:
              src = np.array(Image.open(os.path.join(IMAGE_DIR, f)).convert('RGB'))
@@ -316,8 +347,12 @@ if st.session_state.get('run_batch_trigger', False):
                 clarify_strength, sharpness, contrast, gamma,
                 curve_points, to_bw, alpha, beta, io_val
              )
-             out.save(os.path.join(OUTPUT_DIR, f))
-        except: pass
+             # Force PNG for metadata support
+             out_name = os.path.splitext(f)[0] + ".png"
+             out.save(os.path.join(OUTPUT_DIR, out_name), pnginfo=metadata)
+        except Exception as e:
+             print(f"Error processing {f}: {e}")
+             pass
         pbar.progress((i+1)/len(all_files))
         
     st.success("BATCH COMPLETE")

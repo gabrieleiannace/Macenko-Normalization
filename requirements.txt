@@ -6,3 +6,4 @@ scipy
 altair
 pandas
 scikit-image
+streamlit-clickable-images
