@@ -112,15 +112,15 @@ except FileNotFoundError:
 
 # --- HELPERS ---
 @st.cache_data
-def get_thumbnails(file_list, folder):
+def get_thumbnails(file_list, folder, size=(120, 120)):
     images = []
     for f in file_list:
         path = os.path.join(folder, f)
         with Image.open(path) as img:
-            img.thumbnail((120, 120)) # Resize for heavy performance lift
+            img.thumbnail(size) # Dynamic size
             import io
             with io.BytesIO() as buffer:
-                img.save(buffer, format="JPEG", quality=80) # Faster jpg
+                img.save(buffer, format="JPEG", quality=80) 
                 img_str = base64.b64encode(buffer.getvalue()).decode()
                 images.append(f"data:image/jpeg;base64,{img_str}")
     return images
@@ -262,6 +262,46 @@ with st.sidebar:
 # Top Bar
 if 'selected_sample' not in st.session_state:
      st.session_state.selected_sample = all_files[1] if len(all_files)>1 else all_files[0]
+
+# --- PROCESSED GALLERY ---
+try:
+    processed_files = sorted([f for f in os.listdir(OUTPUT_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
+except FileNotFoundError:
+    processed_files = []
+
+if processed_files:
+    with st.expander("PROCESSED GALLERY (VERTICAL VIEW)", expanded=False):
+        st.caption("📂 **FULL-SIZE REVIEW**", help="Scorri verticalmente per analizzare i risultati in dettaglio.")
+        
+        # Load processed thumbnails (LARGER for detail review)
+        with st.spinner("Loading high-res previews..."):
+            proc_thumbnails = get_thumbnails(processed_files[:20], OUTPUT_DIR, size=(600, 600))
+            
+        clicked_proc = clickable_images(
+            proc_thumbnails,
+            titles=processed_files[:20],
+            div_style={
+                "display": "flex", 
+                "flex-direction": "column", 
+                "height": "600px", 
+                "overflow-y": "auto", 
+                "gap": "30px", 
+                "padding": "15px",
+                "align-items": "center"
+            },
+            img_style={
+                "cursor": "pointer", 
+                "border-radius": "8px", 
+                "border": "3px solid #333", 
+                "width": "100%", 
+                "max-width": "600px", 
+                "height": "auto", 
+                "object-fit": "contain"
+            },
+            key="processed_gallery"
+        )
+        if clicked_proc > -1:
+             st.info(f"Viewing: {processed_files[clicked_proc]}")
 
 # --- IMAGE TRAY CAROUSEL ---
 with st.expander("IMAGE TRAY", expanded=True):
