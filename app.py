@@ -150,21 +150,21 @@ with st.sidebar:
     
     with tab_norm:
         st.caption("ALGORITHM PARAMETERS")
-        io_val = st.slider("Io (TRANSMISSION)", 150, 255, 255, 1)
-        alpha = st.slider("ALPHA (PERCENTILE)", 0.0, 5.0, 1.0, 0.1)
-        beta = st.slider("BETA (OD THRESHOLD)", 0.0, 0.5, 0.15, 0.01)
+        io_val = st.slider("Io (TRANSMISSION)", 150, 255, 255, 1, help="**Intensità Luce Trasmessa**\n\n- **A cosa serve**: Definisce la luminosità dello sfondo (vetrino vuoto).\n- **Uso**: Abbassa se l'immagine è troppo chiara. Alza se è troppo scura.\n- **Effetto**: Sposta l'intera scala di luminosità.")
+        alpha = st.slider("ALPHA (PERCENTILE)", 0.0, 5.0, 1.0, 0.1, help="**Robustezza Stima Colore**\n\n- **A cosa serve**: Determina quali pixel usare per calcolare i colori 'puri'.\n- **Uso**: Alza se ci sono artefatti scuri o sporcizia.\n- **Effetto**: Più alto = ignora i pixel più estremi/scuri.")
+        beta = st.slider("BETA (OD THRESHOLD)", 0.0, 0.5, 0.15, 0.01, help="**Soglia di Trasparenza**\n\n- **A cosa serve**: Ignora i pixel troppo chiari (sfondo) durante il calcolo.\n- **Uso**: Alza se lo sfondo viene confuso con il tessuto.\n- **Effetto**: Esclude il 'bianco' dall'analisi.")
         st.caption("MATCHING")
-        use_lum_match = st.checkbox("Luminosity Match", True)
-        use_hist_match = st.checkbox("Histogram Match", True)
+        use_lum_match = st.checkbox("Luminosity Match", True, help="**Standardizzazione Luminosità**\n\n- **A cosa serve**: Pareggia l'esposizione della foto sorgente a quella target PRIMA dell'analisi.\n- **Effetto**: Corregge foto scure/sovraesposte rendendole coerenti.")
+        use_hist_match = st.checkbox("Histogram Match", True, help="**Matching Istogramma Colore**\n\n- **A cosa serve**: Forza la distribuzione dei colori (H&E) ad essere identica al target.\n- **Effetto**: Garantisce che i viola e i rosa siano esattamente della stessa tonalità del riferimento.")
 
     with tab_grade:
         st.caption("TONE CURVE (SPLINE)")
         # Dense Sliders
-        p0 = st.slider("BLACKS (0)", 0, 255, 0)
-        p1 = st.slider("SHADOWS (64)", 0, 255, 64)
-        p2 = st.slider("MIDTONES (128)", 0, 255, 128)
-        p3 = st.slider("HIGHLIGHTS (192)", 0, 255, 192)
-        p4 = st.slider("WHITES (255)", 0, 255, 255)
+        p0 = st.slider("BLACKS (0)", 0, 255, 0, help="**Punto Neri**\nRegola la luminosità delle zone più scure (es. nuclei densi).")
+        p1 = st.slider("SHADOWS (64)", 0, 255, 64, help="**Punto Ombre**\nRegola le zone scure ma non nere.")
+        p2 = st.slider("MIDTONES (128)", 0, 255, 128, help="**Punto Medi**\nRegola la luminosità generale del tessuto (citoplasma).")
+        p3 = st.slider("HIGHLIGHTS (192)", 0, 255, 192, help="**Punto Luci**\nRegola le zone chiare (es. spazi intercellulari).")
+        p4 = st.slider("WHITES (255)", 0, 255, 255, help="**Punto Bianchi**\nRegola il 'bianco puro' (es. vacuoli di steatosi).")
         
         # Plot
         curve_points = [(0, p0), (64, p1), (128, p2), (192, p3), (255, p4)]
@@ -178,15 +178,15 @@ with st.sidebar:
         st.altair_chart(c_chart)
         
         st.caption("GLOBAL ADJUSTMENTS")
-        contrast = st.slider("CONTRAST", 0.5, 2.0, 1.0, 0.05)
-        gamma = st.slider("GAMMA", 0.1, 3.0, 1.0, 0.05)
-        to_bw = st.checkbox("Monochrome Mode", False)
+        contrast = st.slider("CONTRAST", 0.5, 2.0, 1.0, 0.05, help="**Contrasto Lineare**\n\n- **Uso**: >1.0 aumenta la differenza tra chiaro e scuro. <1.0 la riduce (più piatto).")
+        gamma = st.slider("GAMMA", 0.1, 3.0, 1.0, 0.05, help="**Correzione Gamma**\n\n- **Uso**: <1.0 scurisce i medi. >1.0 schiarisce i medi senza bruciare i bianchi.")
+        to_bw = st.checkbox("Monochrome Mode", False, help="Converte l'output finale in Bianco e Nero.")
 
     with tab_fx:
         st.caption("STEATOSIS ENHANCEMENT")
-        clarify_strength = st.slider("CLARIFIER STRENGTH", 0.0, 2.0, 1.0, 0.1)
+        clarify_strength = st.slider("CLARIFIER STRENGTH", 0.0, 2.0, 1.0, 0.1, help="**Filtro Pulizia Steatosi**\n\n- **A cosa serve**: Rende i vacuoli (buchi) bianco puro, rimuovendo aloni rosa/grigi.\n- **Uso**: Aumenta finché i buchi non sono netti e puliti.")
         st.caption("DETAIL ENHANCEMENT")
-        sharpness = st.slider("UNSHARP MASK", 0.0, 3.0, 1.0, 0.1)
+        sharpness = st.slider("UNSHARP MASK", 0.0, 3.0, 1.0, 0.1, help="**Nitidezza (Unsharp Mask)**\n\n- **A cosa serve**: Aumenta il micro-contrasto sui bordi.\n- **Uso**: Valori bassi (0.5-1.0) per definire meglio i nuclei.")
 
     st.markdown("---")
     if st.button("PROCESS BATCH", type="primary", use_container_width=True):
@@ -230,6 +230,45 @@ if st.session_state.selected_target and st.session_state.selected_sample:
     with col2:
         st.markdown("<div style='text-align:center; color:#00ADB5; font-size:0.8rem; margin-bottom:5px; font-weight:bold;'>NORMALIZED OUTPUT</div>", unsafe_allow_html=True)
         st.image(res_img, use_container_width=True)
+
+    # --- ANALYTICS DASHBOARD ---
+    with st.expander("📊 ANALYTICS DASHBOARD", expanded=True):
+        st.caption("COLOR DISTRIBUTION METRICS")
+        
+        def calculate_hist_data(img_np):
+            # Calculate histograms per channel
+            r_hist, _ = np.histogram(img_np[:,:,0], bins=256, range=(0,256), density=True)
+            g_hist, _ = np.histogram(img_np[:,:,1], bins=256, range=(0,256), density=True)
+            b_hist, _ = np.histogram(img_np[:,:,2], bins=256, range=(0,256), density=True)
+            x = np.arange(256)
+            
+            # Melt for Altair
+            df_r = pd.DataFrame({'val': x, 'density': r_hist, 'channel': 'Red'})
+            df_g = pd.DataFrame({'val': x, 'density': g_hist, 'channel': 'Green'})
+            df_b = pd.DataFrame({'val': x, 'density': b_hist, 'channel': 'Blue'})
+            return pd.concat([df_r, df_g, df_b])
+
+        # Calc
+        df_src = calculate_hist_data(s_img)
+        df_res = calculate_hist_data(np.array(res_img))
+        
+        # Chart Helper
+        def plot_hist(df, title):
+            c = alt.Chart(df).mark_line(strokeWidth=2).encode(
+                x=alt.X('val', title="Brightness (0-255)"),
+                y=alt.Y('density', title=None, axis=None),
+                color=alt.Color('channel', scale=alt.Scale(domain=['Red', 'Green', 'Blue'], range=['#ff4b4b', '#009900', '#4b4bff']), legend=None),
+                tooltip=['channel', 'val', 'density']
+            ).properties(height=150, title=title)
+            return c
+
+        c_a, c_b = st.columns(2)
+        with c_a:
+            st.altair_chart(plot_hist(df_src, "INPUT SPECTRUM (RGB)"), use_container_width=True)
+        with c_b:
+            st.altair_chart(plot_hist(df_res, "OUTPUT SPECTRUM (RGB)"), use_container_width=True)
+            
+        st.info("ℹ️ **INTERPRETAZIONE**: I picchi indicano i colori dominanti. Nel **Target**, il rosa (Eosina) e il viola (Ematossilina) creano curve distinte. L'Output dovrebbe assomigliare alla distribuzione del Target.")
 
 # Footer: Tray
 st.markdown("<div style='margin-top:20px; border-top:1px solid #333;'></div>", unsafe_allow_html=True)
