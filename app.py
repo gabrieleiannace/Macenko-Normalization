@@ -171,26 +171,65 @@ with st.sidebar:
 
     st.markdown("<div style='margin-top:30px; font-size:0.8rem; color:#666; font-weight:bold; margin-bottom:5px;'>PARAMETER DECK</div>", unsafe_allow_html=True)
     
+    # CSS to force tiny tertiary buttons
+    st.markdown("""
+    <style>
+    div[data-testid="column"] button[kind="tertiary"] {
+        padding: 0px 5px !important;
+        min-height: 1.5rem !important;
+        height: 1.5rem !important;
+        line-height: 1 !important;
+        border: none !important;
+        margin-top: 5px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # helper for granular reset
+    def ui_reset_item(label, min_v, max_v, default_v, step_v, key_s, help_s):
+        # Header Row: Label + Small Reset Button
+        c_label, c_btn = st.columns([0.9, 0.1]) 
+        with c_label:
+            st.markdown(f"**{label}**", help=help_s) 
+        with c_btn:
+            if st.button("↺", key=f"rst_{key_s}", help="Reset", type="tertiary"):
+                st.session_state[key_s] = default_v
+                st.rerun()
+        # Slider
+        return st.slider("", min_v, max_v, default_v, step_v, key=key_s, label_visibility="collapsed", help=help_s)
+
+    def ui_reset_checkbox(label, default_v, key_s, help_s):
+        # Header Row
+        c_label, c_btn = st.columns([0.9, 0.1])
+        with c_label:
+             st.markdown(f"**{label}**")
+        with c_btn:
+            if st.button("↺", key=f"rst_{key_s}", help="Reset", type="tertiary"):
+                st.session_state[key_s] = default_v
+                st.rerun()
+        # Checkbox
+        return st.checkbox("", value=st.session_state.get(key_s, default_v), key=key_s, label_visibility="collapsed", help=help_s)
+    
     # 2. PARAMETER DECK
     tab_norm, tab_grade, tab_fx = st.tabs(["NORM", "GRADE", "FX"])
     
     with tab_norm:
         st.caption("ALGORITHM PARAMETERS")
-        io_val = st.slider("Io (TRANSMISSION)", 150, 255, 255, 1, help="**Intensità Luce Trasmessa**\n\n- **A cosa serve**: Definisce la luminosità dello sfondo (vetrino vuoto).\n- **Uso**: Abbassa se l'immagine è troppo chiara. Alza se è troppo scura.\n- **Effetto**: Sposta l'intera scala di luminosità.")
-        alpha = st.slider("ALPHA (PERCENTILE)", 0.0, 5.0, 1.0, 0.1, help="**Robustezza Stima Colore**\n\n- **A cosa serve**: Determina quali pixel usare per calcolare i colori 'puri'.\n- **Uso**: Alza se ci sono artefatti scuri o sporcizia.\n- **Effetto**: Più alto = ignora i pixel più estremi/scuri.")
-        beta = st.slider("BETA (OD THRESHOLD)", 0.0, 0.5, 0.15, 0.01, help="**Soglia di Trasparenza**\n\n- **A cosa serve**: Ignora i pixel troppo chiari (sfondo) durante il calcolo.\n- **Uso**: Alza se lo sfondo viene confuso con il tessuto.\n- **Effetto**: Esclude il 'bianco' dall'analisi.")
+        io_val = ui_reset_item("Io (TRANSMISSION)", 150, 255, 255, 1, "p_io", help_s="**Intensità luce Trasmessa**")
+        alpha = ui_reset_item("ALPHA (PERCENTILE)", 0.0, 5.0, 1.0, 0.1, "p_alpha", help_s="**Robustezza Stima Colore**")
+        beta = ui_reset_item("BETA (OD THRESHOLD)", 0.0, 0.5, 0.15, 0.01, "p_beta", help_s="**Soglia di Trasparenza**")
         st.caption("MATCHING")
-        use_lum_match = st.checkbox("Luminosity Match", True, help="**Standardizzazione Luminosità**\n\n- **A cosa serve**: Pareggia l'esposizione della foto sorgente a quella target PRIMA dell'analisi.\n- **Effetto**: Corregge foto scure/sovraesposte rendendole coerenti.")
-        use_hist_match = st.checkbox("Histogram Match", True, help="**Matching Istogramma Colore**\n\n- **A cosa serve**: Forza la distribuzione dei colori (H&E) ad essere identica al target.\n- **Effetto**: Garantisce che i viola e i rosa siano esattamente della stessa tonalità del riferimento.")
+        use_lum_match = ui_reset_checkbox("Luminosity Match", True, "p_use_lum", help_s="**Standardizzazione Luminosità**\n\n- **A cosa serve**: Pareggia l'esposizione della foto sorgente a quella target PRIMA dell'analisi.\n- **Effetto**: Corregge foto scure/sovraesposte rendendole coerenti.")
+        use_hist_match = ui_reset_checkbox("Histogram Match", True, "p_use_hist", help_s="**Matching Istogramma Colore**\n\n- **A cosa serve**: Forza la distribuzione dei colori (H&E) ad essere identica al target.\n- **Effetto**: Garantisce che i viola e i rosa siano esattamente della stessa tonalità del riferimento.")
 
     with tab_grade:
         st.caption("TONE CURVE (SPLINE)")
         # Dense Sliders
-        p0 = st.slider("BLACKS (0)", 0, 255, 0, help="**Punto Neri**\nRegola la luminosità delle zone più scure (es. nuclei densi).")
-        p1 = st.slider("SHADOWS (64)", 0, 255, 64, help="**Punto Ombre**\nRegola le zone scure ma non nere.")
-        p2 = st.slider("MIDTONES (128)", 0, 255, 128, help="**Punto Medi**\nRegola la luminosità generale del tessuto (citoplasma).")
-        p3 = st.slider("HIGHLIGHTS (192)", 0, 255, 192, help="**Punto Luci**\nRegola le zone chiare (es. spazi intercellulari).")
-        p4 = st.slider("WHITES (255)", 0, 255, 255, help="**Punto Bianchi**\nRegola il 'bianco puro' (es. vacuoli di steatosi).")
+        p0 = ui_reset_item("BLACKS (0)", 0, 255, 0, 1, "p_p0", help_s="**Punto Neri**")
+        p1 = ui_reset_item("SHADOWS (64)", 0, 255, 64, 1, "p_p1", help_s="**Punto Ombre**")
+        p2 = ui_reset_item("MIDTONES (128)", 0, 255, 128, 1, "p_p2", help_s="**Punto Medi**")
+        p3 = ui_reset_item("HIGHLIGHTS (192)", 0, 255, 192, 1, "p_p3", help_s="**Punto Luci**")
+        p4 = ui_reset_item("WHITES (255)", 0, 255, 255, 1, "p_p4", help_s="**Punto Bianchi**")
         
         # Plot
         curve_points = [(0, p0), (64, p1), (128, p2), (192, p3), (255, p4)]
@@ -204,15 +243,15 @@ with st.sidebar:
         st.altair_chart(c_chart)
         
         st.caption("GLOBAL ADJUSTMENTS")
-        contrast = st.slider("CONTRAST", 0.5, 2.0, 1.0, 0.05, help="**Contrasto Lineare**\n\n- **Uso**: >1.0 aumenta la differenza tra chiaro e scuro. <1.0 la riduce (più piatto).")
-        gamma = st.slider("GAMMA", 0.1, 3.0, 1.0, 0.05, help="**Correzione Gamma**\n\n- **Uso**: <1.0 scurisce i medi. >1.0 schiarisce i medi senza bruciare i bianchi.")
-        to_bw = st.checkbox("Monochrome Mode", False, help="Converte l'output finale in Bianco e Nero.")
+        contrast = ui_reset_item("CONTRAST", 0.5, 2.0, 1.0, 0.05, "p_contrast", help_s="**Contrasto Lineare**")
+        gamma = ui_reset_item("GAMMA", 0.1, 3.0, 1.0, 0.05, "p_gamma", help_s="**Correzione Gamma**")
+        to_bw = ui_reset_checkbox("Monochrome Mode", False, "p_bw", help_s="Converte l'output finale in Bianco e Nero.")
 
     with tab_fx:
         st.caption("STEATOSIS ENHANCEMENT")
-        clarify_strength = st.slider("CLARIFIER STRENGTH", 0.0, 2.0, 1.0, 0.1, help="**Filtro Pulizia Steatosi**\n\n- **A cosa serve**: Rende i vacuoli (buchi) bianco puro, rimuovendo aloni rosa/grigi.\n- **Uso**: Aumenta finché i buchi non sono netti e puliti.")
+        clarify_strength = ui_reset_item("CLARIFIER STRENGTH", 0.0, 2.0, 1.0, 0.1, "p_clarify", help_s="**Filtro Pulizia Steatosi**")
         st.caption("DETAIL ENHANCEMENT")
-        sharpness = st.slider("UNSHARP MASK", 0.0, 3.0, 1.0, 0.1, help="**Nitidezza (Unsharp Mask)**\n\n- **A cosa serve**: Aumenta il micro-contrasto sui bordi.\n- **Uso**: Valori bassi (0.5-1.0) per definire meglio i nuclei.")
+        sharpness = ui_reset_item("UNSHARP MASK", 0.0, 3.0, 1.0, 0.1, "p_sharpness", help_s="**Nitidezza (Unsharp Mask)**")
 
     st.markdown("---")
     if st.button("PROCESS BATCH", type="primary", use_container_width=True):
